@@ -10,9 +10,6 @@ export async function GET(request:Request) {
   const row=await getRoom(code);if(!row||Date.now()-row.updated>604800000)return reply({error:'Room not found or expired. Create a new room.'},404);
   const g:Game=JSON.parse(row.state),token=request.headers.get('authorization')?.replace('Bearer ','');
   if(!g.players.some(p=>p.token===token))return reply({error:'Join this room to see the game.'},403);
-  // 304 Not Modified when client already has this version — saves bandwidth on slow WiFi
-  const clientVer=request.headers.get('if-none-match');
-  if(clientVer!==null&&clientVer===String(g.version))return new Response(null,{status:304,headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
   return reply({game:safe(g)});
 }
 export async function POST(request:Request) {

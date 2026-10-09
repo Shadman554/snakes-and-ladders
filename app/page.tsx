@@ -13,12 +13,6 @@ const BoardSquare=memo(function BoardSquare({n,guides,onClick}:{n:number,guides:
   return <button key={n} style={{left:pos.x+'%',top:pos.y+'%'}} className={'square '+(guides?'show-guide':'')} aria-label={`Square ${n}${ladders[n]?', ladder to '+ladders[n]:snakes[n]?', snake to '+snakes[n]:''}`} onClick={()=>onClick(n)} tabIndex={guides?0:-1}><span>{n}</span></button>;
 });
 
-// Debounce helper — coalesces rapid calls into one
-function useDebounced<T>(value:T,delay:number):T{
-  const [debounced,setDebounced]=useState(value);
-  useEffect(()=>{const id=setTimeout(()=>setDebounced(value),delay);return()=>clearTimeout(id);},[value,delay]);
-  return debounced;
-}
 function Die({value,rolling=false}:{value:number,rolling?:boolean}){const dots:Record<number,number[]>={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};return <div className={'die '+(rolling?'rolling':'')} aria-label={`Dice: ${value}`} role="img">{Array.from({length:9},(_,i)=><i key={i} className={dots[value].includes(i)?'pip':'empty'}/>)}</div>}
 export default function Home(){
  const [mode,setMode]=useState<'local'|'online'>('local'),[chosen,setChosen]=useState([0,1]),[names,setNames]=useState(characters.map(c=>c.name)),[mine,setMine]=useState(0),[myName,setMyName]=useState(''),[joinCode,setJoinCode]=useState('');
@@ -39,39 +33,42 @@ export default function Home(){
  useEffect(()=>{try{const preferences=JSON.parse(localStorage.getItem('forest-preferences')||'{}');if(typeof preferences.name==='string')setMyName(preferences.name.slice(0,20));if(Array.isArray(preferences.names)&&preferences.names.length===4&&preferences.names.every((n:unknown)=>typeof n==='string'))setNames(preferences.names.map((n:string)=>n.slice(0,20)));if(['characters','pawns','flowers'].includes(preferences.pieces))setPieces(preferences.pieces);const saved=localStorage.getItem('little-forest-game');if(saved){const data=JSON.parse(saved);if(data.game?.players?.length>=2&&data.game.players.every((p:Player)=>p.character>=0&&p.character<4&&p.position>=1&&p.position<=100)){lastMove.current=data.game.moves[0]?.id||'';setGame(data.game);setDice(data.game.moves[0]?.roll||1);}}const s=localStorage.getItem('little-forest-room');if(s){const data=JSON.parse(s);if(data.code&&data.token){setSession(data);setMode('online');setGame(null);}}const code=new URLSearchParams(location.search).get('room');if(code){setMode('online');setJoinCode(code.toUpperCase().slice(0,6));}}catch{}setReady(true);},[]);
  useEffect(()=>{if(ready)try{localStorage.setItem('forest-preferences',JSON.stringify({name:myName,names,pieces}));}catch{}},[ready,myName,names,pieces]);
  useEffect(()=>{if(!ready)return;try{if(session){localStorage.setItem('little-forest-room',JSON.stringify(session));}else {localStorage.removeItem('little-forest-room');if(game)localStorage.setItem('little-forest-game',JSON.stringify({game}));else localStorage.removeItem('little-forest-game');}}catch{}},[game,session,ready]);
- // Adaptive polling: backs off to 4s after 3 quiet responses, resets on change
-  const pollInterval=useRef(1500),quietCount=useRef(0),abortRef=useRef<AbortController|null>(null);
-  useEffect(()=>{if(!session)return;let stopped=false,timerId:ReturnType<typeof setTimeout>;
+  useEffect(()=>{
+    if(!session)return;
+    let stopped=false,fetching=false;
     async function sync(){
-      if(stopped||busy.current)return;
-      abortRef.current?.abort();
-      const ctrl=new AbortController();abortRef.current=ctrl;
+      if(stopped||fetching)return;
+      fetching=true;
       try{
-        const knownVer=game?.version;
-        const r=await fetch('/api/room?code='+session!.code,{headers:{Authorization:'Bearer '+session!.token,...(knownVer!=null?{'If-None-Match':String(knownVer)}:{})},cache:'no-store',signal:ctrl.signal});
+        const r=await fetch('/api/room?code='+encodeURIComponent(session!.code),{headers:{Authorization:'Bearer '+session!.token},cache:'no-store'});
         if(stopped)return;
-        if(r.status===304){quietCount.current++;if(quietCount.current>=3)pollInterval.current=4000;}
-        else if(r.status===404){
-          // Room is truly gone — clear stale localStorage session so user isn't stuck in error loop
+        if(r.status===404){
           try{localStorage.removeItem('little-forest-room');}catch{}
           setSession(null);setGame(null);
           setError('Room not found — it may have expired. Please create or join a new room.');
           stopped=true;return;
         }
-        else if(!r.ok){const d=await r.json() as {error?:string};throw Error(d.error||'Cannot connect to the room.');}
-        else{const d=await r.json() as {game:Game};setError('');setGame(g=>{if(!g||d.game.version>g.version){quietCount.current=0;pollInterval.current=1500;return d.game;}return g;});}
-      }catch(e){if(!stopped&&!(e instanceof DOMException&&e.name==='AbortError'))setError(e instanceof Error?e.message:'Connection lost. Reconnecting…');}
-      if(!stopped)timerId=setTimeout(sync,pollInterval.current);
+        if(!r.ok){const d=await r.json() as {error?:string};throw Error(d.error||'Cannot connect to the room.');}
+        const d=await r.json() as {game:Game};
+        setError('');
+        setGame(g=>!g||d.game.version>g.version?d.game:g);
+      }catch(e){
+        if(!stopped)setError(e instanceof Error?e.message:'Connection lost. Reconnecting…');
+      }finally{
+        fetching=false;
+      }
     }
     void sync();
-    return()=>{stopped=true;clearTimeout(timerId);abortRef.current?.abort();};
+    const id=setInterval(sync,1200);
+    const onVis=()=>{if(!document.hidden&&!stopped)void sync();};
+    document.addEventListener('visibilitychange',onVis);
+    return()=>{stopped=true;clearInterval(id);document.removeEventListener('visibilitychange',onVis);};
   },[session]);
  useEffect(()=>{const latest=game?.moves[0];if(!latest){lastMove.current='';return;}const m=latest;if(m.id===lastMove.current)return;lastMove.current=m.id;let stopped=false;setAnimating(true);setDice(m.roll);setMoving({id:m.playerId,pos:m.from});async function animate(){await pause(400);if(stopped)return;if(m.effect!=='overshoot'){for(let pos=m.from+1;pos<=m.landed;pos++){if(stopped)return;setMoving({id:m.playerId,pos});tone(350+pos*4);await pause(180);}if(m.to!==m.landed){await pause(280);if(stopped)return;setMoving({id:m.playerId,pos:m.to});tone(m.effect==='ladder'?850:250);await pause(700);}}else await pause(550);if(!stopped){setMoving(null);setAnimating(false);setEffectNotice(null);}}void animate();return()=>{stopped=true;};},[game?.moves[0]?.id]);
  async function online(action:string){if(busy.current)return;busy.current=true;setPending(true);setError('');try{const r=await fetch('/api/room',{method:'POST',headers:{'Content-Type':'application/json',...(session?{Authorization:'Bearer '+session.token}:{})},body:JSON.stringify({action,code:session?.code||joinCode.trim().toUpperCase(),name:myName.trim()||characters[mine].name,character:mine,version:game?.version})});const d=await r.json() as {game:Game,error?:string,token?:string,code:string,playerId:string};if(!r.ok){if(d.game)setGame(d.game);throw Error(d.error||'Please try again.');}if(d.token){setSession({code:d.code,token:d.token,playerId:d.playerId});lastMove.current='';}setGame(d.game);setScreen('game');}catch(e){setError(e instanceof Error?e.message:'Connection lost. Please try again.');}finally{setPending(false);}}
  function begin(){setScreen('game');setEffectNotice(null);lastMove.current='';setDice(1);setError('');setGame(startGame(makeGame(chosen.map(i=>({id:crypto.randomUUID(),name:names[i].trim()||characters[i].name,character:i,position:1})))));}
- // Fire-and-forget roll: don't await server round-trip, polling syncs the state
   async function roll(){if(!game||busy.current)return;tone();
-    if(session){void online('roll');return;}
+    if(session){await online('roll');return;}
     setPending(true);await pause(380);setGame(moveGame(game,randomInt(6)+1));setPending(false);
   }
  function reset(){setScreen('menu');setEffectNotice(null);setGame(null);setSession(null);setMoving(null);setAnimating(false);setPending(false);setExit(false);setError('');lastMove.current='';try{history.replaceState({},'',location.pathname);localStorage.removeItem('little-forest-game');localStorage.removeItem('little-forest-room');}catch{}}
