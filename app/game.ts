@@ -21,4 +21,4 @@ export function moveGame(g:Game,roll:number):Game {
   const move:Move={id:crypto.randomUUID(),playerId:p.id,from,roll,landed,to,effect,message};
   return {...g,players:g.players.map(x=>x.id===p.id?{...x,position:to}:x),turn:to===100?g.turn:(g.turn+1)%g.players.length,status:to===100?'finished':'playing',winner:to===100?p.id:null,moves:[move,...g.moves].slice(0,30),version:g.version+1};
 }
-export function coordinates(square:number) { const row=Math.floor((square-1)/10),index=(square-1)%10,col=row%2===0?index:9-index;return {x:(58+(col+.5)*114.2)/12.54,y:(150+(9-row+.5)*100.9)/12.54}; }
+export function coordinates(square:number) { const row=Math.floor((square-1)/10),index=(square-1)%10,col=row%2===0?index:9-index;return {x:(75+(col+.5)*110.3)/12.54,y:(182+(9-row+.5)*96.8)/12.54}; }
