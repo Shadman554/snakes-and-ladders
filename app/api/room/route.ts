@@ -7,9 +7,12 @@ function profile(b:any):Player {if(typeof b.name!=='string'||!b.name.trim()||b.n
 async function getRoom(code:string) {if(!/^[A-Z2-9]{6}$/.test(code))return null;return await env.DB!.prepare('SELECT state, revision, updated FROM rooms WHERE code = ?').bind(code).first<{state:string,revision:number,updated:number}>();}
 export async function GET(request:Request) {
   const code=(new URL(request.url).searchParams.get('code')||'').toUpperCase();
-  const row=await getRoom(code);if(!row||Date.now()-row.updated>86400000)return reply({error:'Room not found or expired. Create a new room.'},404);
+  const row=await getRoom(code);if(!row||Date.now()-row.updated>604800000)return reply({error:'Room not found or expired. Create a new room.'},404);
   const g:Game=JSON.parse(row.state),token=request.headers.get('authorization')?.replace('Bearer ','');
   if(!g.players.some(p=>p.token===token))return reply({error:'Join this room to see the game.'},403);
+  // 304 Not Modified when client already has this version — saves bandwidth on slow WiFi
+  const clientVer=request.headers.get('if-none-match');
+  if(clientVer!==null&&clientVer===String(g.version))return new Response(null,{status:304,headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
   return reply({game:safe(g)});
 }
 export async function POST(request:Request) {
@@ -22,7 +25,7 @@ export async function POST(request:Request) {
    return reply({error:'Please try creating a room again.'},503);
   }
   const code=String(b.code||'').toUpperCase(),row=await getRoom(code);
-  if(!row||Date.now()-row.updated>86400000)return reply({error:'Room not found or expired. Check the code.'},404);
+  if(!row||Date.now()-row.updated>604800000)return reply({error:'Room not found or expired. Check the code.'},404);
   let g:Game=JSON.parse(row.state);let joined:Player|undefined;
   const token=request.headers.get('authorization')?.replace('Bearer ',''),p=g.players.find(x=>x.token===token);
   if(b.action==='join'){
