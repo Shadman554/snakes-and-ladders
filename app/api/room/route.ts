@@ -1,7 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {Game,Player,makeGame,startGame,moveGame,randomInt} from '../../game';
 export const dynamic='force-dynamic';
-const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store'}});
+const reply=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','Access-Control-Allow-Origin':'*'}});
 function safe(g:Game) {return {...g,players:g.players.map(({token,...p})=>p)};}
 function profile(b:any):Player {if(typeof b.name!=='string'||!b.name.trim()||b.name.trim().length>20||!Number.isInteger(b.character)||b.character<0||b.character>3)throw Error('Choose a character and enter a name (up to 20 letters).');return {id:crypto.randomUUID(),token:crypto.randomUUID(),name:b.name.trim(),character:b.character,position:1};}
 async function getRoom(code:string) {if(!/^[A-Z2-9]{6}$/.test(code))return null;return await env.DB!.prepare('SELECT state, revision, updated FROM rooms WHERE code = ?').bind(code).first<{state:string,revision:number,updated:number}>();}
@@ -14,7 +14,6 @@ export async function GET(request:Request) {
 }
 export async function POST(request:Request) {
  try {
-  if(request.headers.get('origin')&&request.headers.get('origin')!==new URL(request.url).origin)return reply({error:'Invalid origin.'},403);
   if(!env.DB)return reply({error:'Online rooms are not available yet. Try same-device play.'},503);
   const raw=await request.text();if(raw.length>2000)return reply({error:'Request too large.'},400);const b=JSON.parse(raw);
   if(b.action==='create'){
@@ -49,4 +48,14 @@ export async function POST(request:Request) {
   if(!result.meta.changes)return reply({error:'Someone just made a move. Please try again.'},409);
   return reply({game:safe(g),...(joined?{code,token:joined.token,playerId:joined.id}:{})});
  }catch(e){return reply({error:e instanceof SyntaxError?'Invalid request.':e instanceof Error?e.message:'Something went wrong.'},400);}
+}
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  });
 }
