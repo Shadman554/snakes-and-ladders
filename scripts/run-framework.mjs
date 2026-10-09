@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { readExecutionProfile } from "./execution-profile.mjs";
 
 const [command, ...args] = process.argv.slice(2);
-if (!["dev", "build"].includes(command)) throw new Error("Expected dev or build.");
+if (!["dev", "build", "start"].includes(command)) throw new Error("Expected dev, build, or start.");
 const managedLinux = readExecutionProfile() === "managed-linux";
 
 if (managedLinux && command === "build") {
