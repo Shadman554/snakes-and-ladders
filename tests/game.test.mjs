@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {makeGame,startGame,moveGame,coordinates,snakes,ladders} from '../app/game.ts';
+const base=(position=1)=>({...makeGame([{id:'a',name:'Poppy',character:0,position},{id:'b',name:'Peanut',character:1,position:1}]),status:'playing'});
+test('Every snake and reachable ladder uses the supplied endpoint',()=>{for(const [from,to] of Object.entries({...snakes,...ladders})){if(+from===1)continue;const g=moveGame(base(+from-1),1);assert.equal(g.players[0].position,to);}});
+test('Starting square does not trigger a ladder',()=>{const g=startGame(base());assert.ok(g.players.every(p=>p.position===1));});
+test('Only one effect: 28 climbs to 47 without following the snake',()=>assert.equal(moveGame(base(27),1).players[0].position,47));
+test('Overshooting 100 stays put and passes the turn',()=>{const g=moveGame(base(97),5);assert.equal(g.players[0].position,97);assert.equal(g.turn,1);assert.equal(g.status,'playing');});
+test('Exact finish and finish ladder both win',()=>{for(const pos of [99,79]){const g=moveGame(base(pos),1);assert.equal(g.winner,'a');assert.equal(g.status,'finished');}});
+test('Six passes turn; passing over a ladder does not activate it',()=>{const g=moveGame(base(),6);assert.equal(g.players[0].position,7);assert.equal(g.turn,1);});
+test('Sharing a square does not displace the other player',()=>{const g=base(2);g.players[1].position=3;const next=moveGame(g,1);assert.deepEqual(next.players.map(p=>p.position),[3,3]);});
+test('Board coordinates follow zigzag from lower left to upper left',()=>{assert.ok(coordinates(1).x<coordinates(10).x);assert.equal(coordinates(10).x,coordinates(11).x);assert.equal(coordinates(1).x,coordinates(20).x);assert.ok(coordinates(100).y<coordinates(1).y);});
