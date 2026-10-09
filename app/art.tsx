@@ -3,7 +3,7 @@ const sheets:Record<string,[number,number]>={'icons':[1448,1086],'buttons':[1448
 export const sprites:Record<string,[string,number,number,number,number]>={
  settings:['icons',4,125,365,400],sound:['icons',366,125,363,400],music:['icons',730,125,363,400],back:['icons',1090,125,355,400],crown:['icons',0,595,465,385],trophy:['icons',483,545,530,440],medal:['icons',1010,597,436,388],
  roll:['buttons',20,30,710,280],start:['buttons',747,30,700,280],again:['buttons',24,322,705,278],winner:['buttons',736,300,712,324],turn:['buttons',27,610,700,260],waiting:['buttons',746,610,700,260],sign:['buttons',34,854,1408,225],
- 'char-1':['characters',176,0,482,550],'char-0':['characters',792,0,488,550],'char-3':['characters',158,548,525,538],'char-2':['characters',765,548,522,538],
+ 'char-1':['characters',176,0,482,540],'char-0':['characters',792,0,488,540],'char-3':['characters',158,548,525,538],'char-2':['characters',765,548,522,538],
  'label-1':['character-labels',15,409,616,205],'label-0':['character-labels',626,409,625,205],'label-3':['character-labels',15,628,616,210],'label-2':['character-labels',626,628,625,210],
  heart:['decor',49,20,417,350],star:['decor',752,20,367,354],confetti:['decor',0,374,470,368],flowers:['decor',484,392,405,360],bush:['decor',889,366,550,367],rocks:['decor',87,747,713,339],mushrooms:['decor',807,739,637,347],
  title:['title-sun-castle',0,104,1254,457],sun:['title-sun-castle',0,580,680,652],castle:['title-sun-castle',592,543,660,695],
