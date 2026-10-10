@@ -1,0 +1,20 @@
+.screen-content{width:100%;height:100%;position:relative;display:flex;align-items:center;justify-content:center}
+.screen-content>.illustrated-scene,.screen-content>.winner-screen{position:relative;inset:auto;transform:none;width:100%;height:100%;max-width:none;max-height:none;aspect-ratio:941/1672}
+.same-device{position:absolute;left:74%;top:84.2%;width:23%;height:9.5%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:2px solid #976126;border-radius:18px;background:#fff0c9;color:#663b1c;box-shadow:0 3px #794d20;font-size:3cqw;font-weight:700}
+.same-device svg{width:7cqw;height:7cqw}
+.garden-player-hud{background:#d9edb4;box-shadow:0 0 0 5px #d9edb4;border-radius:18px}
+.garden-player.active{outline:2px solid #fff7ae;outline-offset:2px}
+.garden-roll-message{left:68.8%;top:85.2%;width:25.2%;height:6.8%;padding:5px;font-size:3.5cqw;line-height:1.35;background:#ffe3a4}
+.last-move{position:absolute;bottom:.5%;left:6%;width:88%;margin:0;min-height:2%;text-align:center;font-size:2.7cqw;font-weight:700;color:#44220d;background:#fff4d9e8;border-radius:8px;padding:3px 7px}
+.last-move:empty{display:none}
+.volume-setting{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;margin:16px 4px;text-align:left;font-size:15px;font-weight:700}
+.volume-setting input{width:100%;accent-color:#427a36;cursor:pointer;min-height:24px}
+.volume-setting output{font-weight:400}
+.garden-board-grid{contain:layout style}
+.token{will-change:left,top}
+.garden-dice:disabled{opacity:.8}
+.modal{overscroll-behavior:contain}
+.text-button{min-height:36px}
+.setup-scroll,.story-scroll,.modal{scrollbar-gutter:stable}
+@media(prefers-reduced-motion:reduce){.token{will-change:auto}}
+@media(max-height:540px){.game-shell:has(.setup-screen),.game-shell:has(.modal-backdrop){width:min(100vw,460px);height:100dvh;aspect-ratio:auto}.modal-backdrop{position:fixed;padding:12px}.modal{max-height:94dvh}}

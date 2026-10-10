@@ -6,16 +6,19 @@ function safe(g:Game) {return {...g,players:g.players.map(({token,...p})=>p)};}
 function profile(b:any):Player {if(typeof b.name!=='string'||!b.name.trim()||b.name.trim().length>20||!Number.isInteger(b.character)||b.character<0||b.character>3)throw Error('Choose a character and enter a name (up to 20 letters).');return {id:crypto.randomUUID(),token:crypto.randomUUID(),name:b.name.trim(),character:b.character,position:1};}
 async function getRoom(code:string) {if(!/^[A-Z2-9]{6}$/.test(code))return null;return await env.DB!.prepare('SELECT state, revision, updated FROM rooms WHERE code = ?').bind(code).first<{state:string,revision:number,updated:number}>();}
 export async function GET(request:Request) {
+ try {
+  if(!env.DB)return reply({error:'Online rooms are unavailable. You can still play on the same device.'},503);
   const code=(new URL(request.url).searchParams.get('code')||'').toUpperCase();
   const row=await getRoom(code);if(!row||Date.now()-row.updated>604800000)return reply({error:'Room not found or expired. Create a new room.'},404);
   const g:Game=JSON.parse(row.state),token=request.headers.get('authorization')?.replace('Bearer ','');
   if(!g.players.some(p=>p.token===token))return reply({error:'Join this room to see the game.'},403);
   return reply({game:safe(g)});
+ }catch{return reply({error:'Cannot connect to the room. Please try again.'},503);}
 }
 export async function POST(request:Request) {
  try {
   if(!env.DB)return reply({error:'Online rooms are not available yet. Try same-device play.'},503);
-  const raw=await request.text();if(raw.length>2000)return reply({error:'Request too large.'},400);const b=JSON.parse(raw);
+  const raw=await request.text();if(raw.length>2000)return reply({error:'Request too large.'},400);const b=JSON.parse(raw);if(!b||typeof b!=='object'||Array.isArray(b))return reply({error:'Invalid request.'},400);
   if(b.action==='create'){
    const p=profile(b),g=makeGame([p]);
    for(let i=0;i<5;i++) {const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',code=Array.from({length:6},()=>alphabet[randomInt(alphabet.length)]).join('');const r=await env.DB.prepare('INSERT OR IGNORE INTO rooms (code,state,revision,updated) VALUES (?,?,?,?)').bind(code,JSON.stringify(g),0,Date.now()).run();if(r.meta.changes)return reply({code,game:safe(g),token:p.token,playerId:p.id});}

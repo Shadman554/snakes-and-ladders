@@ -9,6 +9,15 @@ export const ladders: Record<number,number> = {80:100,71:91,55:84,51:67,21:42,1:
 export type Player = {id:string,name:string,character:number,position:number,token?:string};
 export type Move = {id:string,playerId:string,from:number,roll:number,landed:number,to:number,effect:'snake'|'ladder'|'overshoot'|'walk',message:string};
 export type Game = {players:Player[],turn:number,status:'lobby'|'playing'|'finished',winner:string|null,moves:Move[],version:number,host:string};
+export function isSavedGame(value:unknown):value is Game {
+  if(!value||typeof value!=='object')return false;
+  const g=value as Game;
+  if(!Array.isArray(g.players)||g.players.length<2||g.players.length>4||!['playing','finished'].includes(g.status)||!Number.isInteger(g.turn)||g.turn<0||g.turn>=g.players.length||!Number.isInteger(g.version)||g.version<0||!Array.isArray(g.moves)||g.moves.length>30)return false;
+  if(!g.players.every(p=>p&&typeof p.id==='string'&&typeof p.name==='string'&&p.name.trim().length>0&&p.name.length<=20&&Number.isInteger(p.character)&&p.character>=0&&p.character<4&&Number.isInteger(p.position)&&p.position>=1&&p.position<=100))return false;
+  if(new Set(g.players.map(p=>p.id)).size!==g.players.length||new Set(g.players.map(p=>p.character)).size!==g.players.length||!g.players.some(p=>p.id===g.host))return false;
+  if(g.status==='finished'?!g.players.some(p=>p.id===g.winner&&p.position===100):g.winner!==null||g.players.some(p=>p.position===100))return false;
+  return g.moves.every(m=>m&&typeof m.id==='string'&&g.players.some(p=>p.id===m.playerId)&&Number.isInteger(m.roll)&&m.roll>=1&&m.roll<=6&&[m.from,m.landed,m.to].every(n=>Number.isInteger(n)&&n>=1&&n<=100)&&['snake','ladder','overshoot','walk'].includes(m.effect)&&typeof m.message==='string');
+}
 export function randomInt(n:number):number { const a=new Uint32Array(1);const limit=Math.floor(4294967296/n)*n;do{crypto.getRandomValues(a);}while(a[0]>=limit);return a[0]%n; }
 export function makeGame(players:Player[]):Game {return {players,turn:0,status:'lobby',winner:null,moves:[],version:0,host:players[0].id};}
 export function startGame(g:Game):Game {return {...g,players:g.players.map(p=>({...p,position:1})),turn:randomInt(g.players.length),status:'playing',winner:null,moves:[],version:g.version+1};}
